@@ -1,0 +1,120 @@
+---
+title: "Predicting the Quality of Weight-Lefting Exercises With Machine Learning in R"
+author: "Srawan Kumar Srimant"
+date: "May 16, 2017"
+output: html_document
+---
+
+## Predicting the Quality of Weight-Lefting Exercises With Machine Learning in R
+
+Human Activity Recognition provides the excecise done by different athlete in correct as well as incorrect manner.
+The Training dataset provides a variable named Classes of Factor king used to Rate the Quality of the excecise.
+Based on the model developed in the Training set the quality of the excecise has to be determined in the Test Set
+for 20 different observations.
+
+## Loading the required packages
+
+```{r}
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(RColorBrewer)
+library(knitr)
+library(randomForest)
+```
+
+
+## Data Import
+```{r}
+Training <-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv")
+Validate  <-read.csv("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv")
+```
+
+## Partition Training Set
+```{r}
+inTrain <- createDataPartition(Training$classe, p=0.6, list=FALSE)
+Training <- Training[inTrain, ]
+Testing <- Training[-inTrain, ]
+dim(Training); dim(Testing)
+```
+
+
+## Data Cleaning
+## Removing Near Zero Variables
+```{r}
+nzv <- nearZeroVar(Training, saveMetrics=TRUE)
+MyTraining <- Training[,nzv$nzv==FALSE]
+
+nzv <- nearZeroVar(Testing, saveMetrics=TRUE)
+MyTesting <- Testing[,nzv$nzv==FALSE]
+```
+
+## Removing NA variables from Training Data Set when occurance of NA is more that 60% of the total (19622*60% = 11774)
+
+```{r}
+MyTraining1 <-MyTraining[colSums(!is.na(MyTraining)) > 11774]
+```
+
+##Remove the first column of the myTraining data set
+
+```{r}
+myTraining2 <- MyTraining1[c(-1)]
+
+```
+
+## Removing NA variables from Testing  Data Set when occurance of NA is more that 60% of the total (20*60% = 2825)
+
+```{r}
+MyTesting1  <-MyTesting[colSums(!is.na(MyTesting)) > 2825]
+
+MyTesting2 <- MyTesting1[c(-1)]
+
+dim(myTraining2)
+dim(MyTesting2)
+
+```
+
+
+## Model based on Decision Tree Plot.
+
+```{r}
+set.seed(12345)
+Model_DT <- rpart(classe ~ ., data=myTraining2, method="class")
+rpart.plot(Model_DT)
+
+```
+
+## Creating Confusion Matrix on MyTesting2 Dataset
+
+```{r}
+Prediction_DT <- predict(Model_DT, MyTesting2, type = "class")
+confusionMatrix_tree <- confusionMatrix(Prediction_DT, MyTesting2$classe)
+confusionMatrix_tree
+plot(confusionMatrix_tree$table, col = confusionMatrix_tree$byClass, main = paste("Decision Tree Confusion Matrix: Accuracy =", round(confusionMatrix_tree$overall['Accuracy'], 4)))
+
+```
+
+## Model based on Random Forest.
+
+```{r}
+set.seed(12345)
+Model_RF <- randomForest(classe ~ ., data=myTraining2)
+Prediction_RF <- predict(Model_RF, MyTesting2, type = "class")
+confusionMatrix_RF <- confusionMatrix(Prediction_RF, MyTesting2$classe)
+confusionMatrix_RF
+plot(Prediction_RF)
+plot(confusionMatrix_RF$table, col = confusionMatrix_tree$byClass, main = paste("Random Forest Confusion Matrix: Accuracy =", round(confusionMatrix_RF$overall['Accuracy'], 4)))
+```
+
+## Predicting Results on the Validation Data based on Random Forest as its accuracy is better than Decision Tree
+
+```{r}
+Req_variables <- colnames(myTraining2[, -58])   # remove the classe column
+my_Validate <- Validate[Req_variables]    # allow only variables in validate that are also in myTraining
+
+
+Predict_validate <- predict(Model_RF, data=my_Validate,type = "class")
+
+```
+
+
